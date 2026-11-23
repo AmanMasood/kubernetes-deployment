@@ -61,7 +61,7 @@ Useful commands:
 
 ```bash
 kubectl -n k8s-demo get pods -w
-kubectl -n k8s-demo scale deploy/k8s-demo --replicas=4
+kubectl -n k8s-demo patch hpa k8s-demo -p '{"spec":{"minReplicas":4}}'
 kubectl -n k8s-demo rollout history deploy/k8s-demo
 kubectl -n k8s-demo rollout undo deploy/k8s-demo
 kubectl kustomize k8s/overlays/prod     # inspect rendered prod manifests

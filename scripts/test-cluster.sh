@@ -14,10 +14,14 @@ curl -fsS localhost:8080/ | tee /dev/stderr | grep -q '"api_key_configured":true
 echo "2) probes are configured"
 kubectl -n "$NS" get deploy k8s-demo -o jsonpath='{.spec.template.spec.containers[0].readinessProbe.httpGet.path}' | grep -q /readyz
 
-echo "3) scale out to 3 replicas"
-kubectl -n "$NS" scale deploy/k8s-demo --replicas=3
-kubectl -n "$NS" rollout status deploy/k8s-demo --timeout=120s
-test "$(kubectl -n "$NS" get deploy k8s-demo -o jsonpath='{.status.readyReplicas}')" = "3"
+echo "3) scale out to 3 replicas through the HPA (the HPA owns the replica count)"
+kubectl -n "$NS" patch hpa k8s-demo -p '{"spec":{"minReplicas":3,"maxReplicas":3}}'
+for _ in $(seq 1 40); do
+  ready="$(kubectl -n "$NS" get deploy k8s-demo -o jsonpath='{.status.readyReplicas}')"
+  [[ "$ready" == "3" ]] && break
+  sleep 3
+done
+test "$ready" = "3" || { echo "expected 3 ready replicas, got ${ready:-0}"; exit 1; }
 
 echo "4) self-healing: delete a pod, deployment replaces it"
 POD=$(kubectl -n "$NS" get pods -l component=web -o jsonpath='{.items[0].metadata.name}')
